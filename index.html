@@ -1889,13 +1889,23 @@
      platform-exclusive titles and titles also available elsewhere get a
      chip. An outline/dot treatment (not a solid fill) keeps it visually
      quieter than the price/GOTY/new tags that actually matter more. ---- */
-  .tag.tag-platform { background: none; border: 1px solid var(--line-strong); display: inline-flex; align-items: center; gap: 4px; }
-  .tag.tag-platform .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
-  .tag.tag-platform.tp-steam .dot { background: var(--plat-steam); }
-  .tag.tag-platform.tp-ps .dot { background: var(--plat-ps); }
-  .tag.tag-platform.tp-switch .dot { background: var(--plat-switch); }
-  .tag.tag-platform.tp-xbox .dot { background: var(--plat-xbox); }
-  .tag.tag-platform.tp-pc .dot { background: var(--ink-soft); }
+  /* round51フィードバック: 枠線+丸ドット案は「違和感」とのことで、他のタグ
+     と全く同じピル(背景・サイズとも)に戻し、中の文字色だけプラットフォーム
+     ブランドカラーにする方式に変更(「でも」表記・ドットは引き続き無し)。
+     Xboxは元々--teal参照でダークモード時の明るい色に自動追従するが、
+     PS/Switchは固定hexなので、既存の未使用だった*-lightトークン(このコメ
+     ントの少し上の:rootで定義済み)をダークモード側の文字色に流用する。 */
+  .tag.tag-platform { font-family: 'JetBrains Mono', monospace; }
+  .tag.tag-platform.tp-ps { color: var(--plat-ps); }
+  .tag.tag-platform.tp-switch { color: var(--plat-switch); }
+  .tag.tag-platform.tp-xbox { color: var(--plat-xbox); }
+  .tag.tag-platform.tp-pc { color: var(--ink-soft); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .tag.tag-platform.tp-ps { color: var(--plat-ps-light); }
+    :root:not([data-theme="light"]) .tag.tag-platform.tp-switch { color: var(--plat-switch-light); }
+  }
+  :root[data-theme="dark"] .tag.tag-platform.tp-ps { color: var(--plat-ps-light); }
+  :root[data-theme="dark"] .tag.tag-platform.tp-switch { color: var(--plat-switch-light); }
 
   .match-bar-track { height: 5px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 2px; }
   .match-bar-fill { height: 100%; background: var(--teal); border-radius: 999px; }
@@ -10293,28 +10303,28 @@
     if (game.exclusivePlatform) { return EXCLUSIVE_PLATFORM_LABEL[game.exclusivePlatform] || "ストア"; }
     return "Steam / PC";
   }
-  // ---- Platform chip(s) in the tag-row (round50) -- moved out of the
-  // thumbnail's corner (which now shows the review badge instead). Only
-  // rendered when it's actually worth flagging: a platform-exclusive title
-  // gets one primary chip naming its actual store, and a Steam title also
-  // released on PS/Switch/Xbox gets a small "also on X" chip per extra
-  // platform. A plain Steam-only title (most of the catalog) gets nothing
-  // here -- "it's on Steam" doesn't need repeating on every single card of
-  // a Steam recommendation site, and that's also the decluttering this was
-  // asked for in the first place. ----
-  var TAG_PLATFORM_SHORT = { ps: "PS", switch: "Switch", xbox: "Xbox" };
+  // ---- Platform chip(s) in the tag-row (round50, restyled round51) --
+  // moved out of the thumbnail's corner (which now shows the review badge
+  // instead). Only rendered when it's actually worth flagging: a platform-
+  // exclusive title gets one chip naming its store, and a Steam title also
+  // released on PS/Switch/Xbox gets a chip per extra platform. A plain
+  // Steam-only title (most of the catalog) gets nothing here -- "it's on
+  // Steam" doesn't need repeating on every single card of a Steam
+  // recommendation site. round51: dropped the dot + "も遊べる" wording
+  // (felt over-explained) in favor of a plain 2-letter code rendered as a
+  // normal-size .tag pill, colored per platform via text color alone --
+  // no separate marker element needed. ----
+  var TAG_PLATFORM_SHORT = { ps: "PS", switch: "SW", xbox: "XB", pc: "PC" };
   function platformTagsHtml(game) {
     var chips = [];
     if (game.exclusivePlatform) {
-      var label = EXCLUSIVE_PLATFORM_LABEL[game.exclusivePlatform] || "ストア";
-      chips.push('<span class="tag tag-platform tp-' + game.exclusivePlatform + '"><span class="dot"></span>' +
-        escapeHtml(label) + '</span>');
+      chips.push('<span class="tag tag-platform tp-' + game.exclusivePlatform + '">' +
+        TAG_PLATFORM_SHORT[game.exclusivePlatform] + '</span>');
     }
     ["ps", "switch", "xbox"].forEach(function (p) {
       if (game.exclusivePlatform === p) { return; } // already the primary chip above
       if (game.platExtra && game.platExtra[p]) {
-        chips.push('<span class="tag tag-platform tp-' + p + '"><span class="dot"></span>' +
-          TAG_PLATFORM_SHORT[p] + 'でも</span>');
+        chips.push('<span class="tag tag-platform tp-' + p + '">' + TAG_PLATFORM_SHORT[p] + '</span>');
       }
     });
     return chips.join("");

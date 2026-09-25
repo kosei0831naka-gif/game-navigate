@@ -14794,13 +14794,62 @@
   };
   var quizStickyCta = document.getElementById("quizStickyCta");
   var modeToggleEl = document.getElementById("modeToggle");
+  // chat/quiz/search all share one #results DOM node + one `state` object
+  // (see setPool()/render() above) -- there was never a per-tab result
+  // area, so switching tabs used to leave whatever was last rendered on
+  // screen no matter which tab you landed on. tabSnapshots holds each tab's
+  // own copy of the relevant `state` fields; showTab() saves the outgoing
+  // tab's copy before switching and restores the incoming tab's copy (or
+  // resets to the untouched/pre-search look if that tab has never searched
+  // yet) -- a display swap, not a discard, so going back to a tab you'd
+  // already searched in still shows that tab's results.
+  var tabSnapshots = { chat: null, quiz: null, search: null };
+  var currentTabName = "chat"; // matches the tab that's active by default in the markup (no `hidden` on panelChat)
+  function captureTabState() {
+    return {
+      pool: state.pool, pinned: state.pinned, sourceLabel: state.sourceLabel,
+      emptyReason: state.emptyReason, priceMax: state.priceMax,
+      genreFilter: state.genreFilter, visibleCount: state.visibleCount,
+      sortMode: state.sortMode, shareBase: state.shareBase,
+      resultPriceGroupHidden: resultPriceGroup.hidden
+    };
+  }
+  function applyTabState(snap) {
+    if (snap) {
+      state.pool = snap.pool; state.pinned = snap.pinned; state.sourceLabel = snap.sourceLabel;
+      state.emptyReason = snap.emptyReason; state.priceMax = snap.priceMax;
+      state.genreFilter = snap.genreFilter; state.visibleCount = snap.visibleCount;
+      state.sortMode = snap.sortMode; state.shareBase = snap.shareBase;
+      resultPriceGroup.hidden = snap.resultPriceGroupHidden;
+    } else {
+      // This tab has never searched -- same reset setPool([], "", null) does.
+      state.pool = []; state.pinned = null; state.sourceLabel = "";
+      state.emptyReason = null; state.priceMax = PRICE_SLIDER_MAX;
+      state.genreFilter = "all"; state.visibleCount = PAGE_SIZE;
+      state.sortMode = "relevance"; state.shareBase = null;
+      resultPriceGroup.hidden = false;
+    }
+    resultSortSelect.value = state.sortMode;
+    resultPriceSlider.value = state.priceMax;
+    resultPriceHandle.apply(state.priceMax);
+    document.querySelectorAll('.chip-row-flat[data-filter="genre"] .filter-chip').forEach(function (b) {
+      b.classList.toggle("active", b.dataset.value === state.genreFilter);
+    });
+    updateGenreChipVisibility();
+    if (heroFeaturedWrapEl) { heroFeaturedWrapEl.hidden = !!state.sourceLabel; }
+    render();
+  }
   function showTab(name) {
+    if (name === currentTabName) { return; }
+    tabSnapshots[currentTabName] = captureTabState();
     Object.keys(tabs).forEach(function (key) {
       var active = key === name;
       tabs[key].btn.classList.toggle("active", active);
       tabs[key].btn.setAttribute("aria-selected", active ? "true" : "false");
       tabs[key].panel.hidden = !active;
     });
+    currentTabName = name;
+    applyTabState(tabSnapshots[name]);
     // The row's own shared baseline (the connector line under the inactive
     // tabs) picks up the active mode's color too, not just the active tab's
     // own box -- per explicit feedback that a plain grey connector "has no
@@ -15067,8 +15116,10 @@
     document.querySelectorAll('#panelQuiz input[type="checkbox"]').forEach(function (i) { i.checked = false; });
     quizPriceSlider.value = PRICE_SLIDER_MAX;
     quizPriceHandle.apply(PRICE_SLIDER_MAX);
-    resultsEl.innerHTML = "";
-    filterBar.hidden = true;
+    // setPool (not a manual resultsEl/filterBar clear) so `state.pool` itself
+    // is actually emptied -- otherwise a later tab switch's snapshot/restore
+    // would still find the old pool sitting in `state` and bring it back.
+    setPool([], "", null);
     updateQuizLiveState();
   }
   document.getElementById("recapClearAll").addEventListener("click", clearQuizAll);
@@ -15283,8 +15334,10 @@
   });
   document.getElementById("searchClear").addEventListener("click", function () {
     document.getElementById("searchInput").value = "";
-    resultsEl.innerHTML = "";
-    filterBar.hidden = true;
+    // setPool (not a manual resultsEl/filterBar clear) so `state.pool` itself
+    // is actually emptied -- otherwise a later tab switch's snapshot/restore
+    // would still find the old pool sitting in `state` and bring it back.
+    setPool([], "", null);
     hideSuggestions();
   });
 
